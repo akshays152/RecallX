@@ -7,3 +7,4 @@ data class SearchResponse(val query: String, val results: List<SearchResult>, va
 data class VisualSearchResponse(val queryId: String, val question: String?, val results: List<SearchResult>, val provider: String)
 data class IngestionResult(val memory: Memory, val provider: String, val message: String)
 data class MemoryStatus(val id: String, val processingStatus: ProcessingStatus, val updatedAt: String?, val processingError: String?, val contentAvailable: Boolean)
+data class MemoryContent(val mediaType: String?, val bytes: ByteArray)

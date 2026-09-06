@@ -13,19 +13,26 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class DefaultRecallXRepository(private val api: RecallXApi) : RecallXRepository {
-    override suspend fun listMemories() = api.listMemories().map { it.toModel() }
-    override suspend fun getMemory(id: String) = api.getMemory(id).toModel()
-    override suspend fun getMemoryStatus(id: String) = api.getMemoryStatus(id).toModel()
+    override suspend fun getMemories(type: String?, page: Int, pageSize: Int, sort: String) = safeCall { api.listMemories(type, page, pageSize, sort) }.map { it.toDomain() }
+    override suspend fun getMemory(id: String) = safeCall { api.getMemory(id) }.toDomain()
+    override suspend fun getMemoryContent(id: String): MemoryContent = withContext(Dispatchers.IO) {
+        val response = safeCall { api.getMemoryContent(id) }
+        val body = response.body() ?: throw RecallXApiException(response.code(), "This memory's original content is unavailable.")
+        MemoryContent(body.contentType()?.toString(), body.bytes())
+    }
+    override suspend fun getMemoryStatus(id: String) = safeCall { api.getMemoryStatus(id) }.toDomain()
     override suspend fun createMemory(file: File, source: String, fileType: String?): IngestionResult {
         val part = MultipartBody.Part.createFormData("file", file.name, file.asRequestBody("application/octet-stream".toMediaType()))
-        return api.createMemory(part, source.toRequestBody("text/plain".toMediaType()), fileType?.toRequestBody("text/plain".toMediaType())).toModel()
+        return safeCall { api.createMemory(part, source.toRequestBody("text/plain".toMediaType()), fileType?.toRequestBody("text/plain".toMediaType())) }.toDomain()
     }
-    override suspend fun deleteMemory(id: String) { check(api.deleteMemory(id).isSuccessful) { "Unable to delete memory" } }
-    override suspend fun relatedMemories(id: String) = api.relatedMemories(id).map { it.toModel() }
-    override suspend fun searchMemories(query: String) = api.searchMemories(SearchRequestDto(query)).toModel()
-    override suspend fun visualSearch(file: File, question: String?) = api.visualSearch(MultipartBody.Part.createFormData("image", file.name, file.asRequestBody("image/*".toMediaType())), question?.toRequestBody("text/plain".toMediaType())).toModel()
+    override suspend fun deleteMemory(id: String) { safeCall { api.deleteMemory(id) } }
+    override suspend fun getRelatedMemories(id: String) = safeCall { api.relatedMemories(id) }.map { it.toDomain() }
+    override suspend fun searchMemories(query: String) = safeCall { api.searchMemories(SearchRequestDto(query)) }.toDomain()
+    override suspend fun visualSearch(file: File, question: String?) = safeCall { api.visualSearch(MultipartBody.Part.createFormData("image", file.name, file.asRequestBody("image/*".toMediaType())), question?.toRequestBody("text/plain".toMediaType())) }.toDomain()
 
     companion object {
         private const val EMULATOR_BASE_URL = "http://10.0.2.2:8000/api/"
@@ -40,9 +47,24 @@ class DefaultRecallXRepository(private val api: RecallXApi) : RecallXRepository 
     }
 }
 
-private fun MemoryRecordDto.toModel() = Memory(id, title, summary, runCatching { MemoryFileType.valueOf(fileType.uppercase()) }.getOrDefault(MemoryFileType.IMAGE), createdAt, source, runCatching { ProcessingStatus.valueOf(processingStatus.uppercase()) }.getOrDefault(ProcessingStatus.PROCESSING), updatedAt, processingError, extractedText, entities, tags, thumbnailTheme, embeddingReference, contentAvailable, contentUrl, thumbnailAvailable, thumbnailUrl)
-private fun MemorySearchResultDto.toModel() = SearchResult(toMemoryDto().toModel(), score, matchReason, rankingSource)
-private fun SearchResponseDto.toModel() = SearchResponse(query, results.map { it.toModel() }, provider)
-private fun VisualSearchResponseDto.toModel() = VisualSearchResponse(queryId, question, results.map { it.toModel() }, provider)
-private fun IngestionResponseDto.toModel() = IngestionResult(memory.toModel(), provider, message)
-private fun MemoryStatusResponseDto.toModel() = MemoryStatus(id, runCatching { ProcessingStatus.valueOf(processingStatus.uppercase()) }.getOrDefault(ProcessingStatus.PROCESSING), updatedAt, processingError, contentAvailable)
+private suspend fun <T> safeCall(block: suspend () -> T): T = try {
+    block()
+} catch (error: retrofit2.HttpException) {
+    throw RecallXApiException(error.code(), when (error.code()) {
+        404 -> "That memory is no longer available."
+        413 -> "The selected file is too large."
+        415 -> "This file type is not supported."
+        else -> "RecallX couldn't complete that request. Please try again."
+    })
+} catch (error: java.io.IOException) {
+    throw RecallXNetworkException()
+}
+
+private suspend fun <T> safeCall(block: suspend () -> retrofit2.Response<T>): retrofit2.Response<T> = try {
+    val response = block()
+    if (!response.isSuccessful) throw RecallXApiException(response.code(), when (response.code()) {
+        404 -> "That memory is no longer available."
+        else -> "RecallX couldn't complete that request. Please try again."
+    })
+    response
+} catch (error: RecallXApiException) { throw error } catch (error: java.io.IOException) { throw RecallXNetworkException() }

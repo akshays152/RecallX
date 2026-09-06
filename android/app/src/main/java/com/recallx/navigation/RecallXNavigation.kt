@@ -12,6 +12,7 @@ import com.recallx.core.ui.AddMemoryScreen
 import com.recallx.core.ui.CameraSearchScreen
 import com.recallx.core.ui.LibraryScreen
 import com.recallx.core.ui.MemoryDetailScreen
+import com.recallx.core.ui.SearchScreen
 import com.recallx.core.ui.VisualSearchResultsScreen
 import com.recallx.core.ui.VisualSearchViewModel
 import com.recallx.data.repository.RecallXRepository
@@ -43,7 +44,7 @@ fun RecallXNavHost(repository: RecallXRepository) {
             composable(Destination.Home.route) { HomeScreen(repository, onSearch = { navController.navigate(Destination.SearchResults.route) }, onAddMemory = { navController.navigate(Destination.AddMemory.route) }, onCameraSearch = { navController.navigate(Destination.CameraSearch.route) }, onOpenMemory = { navController.navigate("memory-detail/$it") }, onOpenLibrary = { navController.navigate(Destination.Library.route) }) }
             composable(Destination.Library.route) { LibraryScreen(repository, onMemory = { navController.navigate("memory-detail/$it") }, onAddMemory = { navController.navigate(Destination.AddMemory.route) }) }
             composable(Destination.CameraSearch.route) { CameraSearchScreen(repository, onBack = { navController.popBackStack() }, onResults = { navController.navigate(Destination.VisualSearchResults.route) }) }
-            composable(Destination.SearchResults.route) { PlaceholderScreen("Search", "Advanced semantic search will be added in a later phase.", "Back") { navController.popBackStack() } }
+            composable(Destination.SearchResults.route) { SearchScreen(repository, onBack = { navController.popBackStack() }, onOpenMemory = { navController.navigate("memory-detail/$it") }) }
             composable(Destination.AddMemory.route) { AddMemoryScreen(repository, onBack = { navController.popBackStack() }, onViewMemory = { navController.navigate("memory-detail/$it") }) }
             composable(Destination.MemoryDetail.route) { entry ->
                 val memoryId = entry.arguments?.getString("id")

@@ -125,4 +125,4 @@ fun MemoryDetailScreen(repository: RecallXRepository, memoryId: String, onBack: 
 fun <T : ViewModel> repositoryFactory(create: () -> T) = object : ViewModelProvider.Factory { @Suppress("UNCHECKED_CAST") override fun <VM : ViewModel> create(modelClass: Class<VM>): VM = create() as VM }
 private fun MemoryFileType.displayName() = name.lowercase().replaceFirstChar { it.uppercase() }
 private fun ProcessingStatus.displayName() = name.lowercase().replaceFirstChar { it.uppercase() }
-private fun String.displayDate(): String = runCatching { DateTimeFormatter.ofPattern("dd MMM yyyy").format(Instant.parse(this).atZone(ZoneId.systemDefault())) }.getOrDefault(this)
+fun String.displayDate(): String = runCatching { DateTimeFormatter.ofPattern("dd MMM yyyy").format(Instant.parse(this).atZone(ZoneId.systemDefault())) }.getOrDefault(this)

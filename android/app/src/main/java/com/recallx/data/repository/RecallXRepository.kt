@@ -10,6 +10,7 @@ interface RecallXRepository {
     suspend fun createMemory(file: File, source: String, fileType: String? = null): IngestionResult
     suspend fun deleteMemory(id: String)
     suspend fun getRelatedMemories(id: String): List<SearchResult>
+    suspend fun uploadMemory(file: SelectedMemoryFile, source: String, contentResolver: android.content.ContentResolver): IngestionResult
     suspend fun searchMemories(query: String): SearchResponse
     suspend fun visualSearch(file: File, question: String? = null): VisualSearchResponse
 }

@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.recallx.core.model.*
@@ -28,6 +30,7 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(repository: RecallXRepository, onSearch: () -> Unit, onAddMemory: () -> Unit, onCameraSearch: () -> Unit, onOpenMemory: (String) -> Unit, onOpenLibrary: () -> Unit) {
     val vm: HomeViewModel = viewModel(factory = repositoryFactory { HomeViewModel(repository) })
     val state by vm.uiState.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.load() }
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { Text("RecallX", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary); Text("Welcome back", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold); Text("Keep the moments worth remembering close.", style = MaterialTheme.typography.bodyLarge) }
         item { OutlinedButton(onClick = onSearch, modifier = Modifier.fillMaxWidth()) { Text("⌕  Search your memories", modifier = Modifier.fillMaxWidth()) } }
@@ -47,12 +50,13 @@ fun HomeScreen(repository: RecallXRepository, onSearch: () -> Unit, onAddMemory:
 }
 
 @Composable
-fun LibraryScreen(repository: RecallXRepository, onMemory: (String) -> Unit) {
+fun LibraryScreen(repository: RecallXRepository, onMemory: (String) -> Unit, onAddMemory: () -> Unit) {
     val vm: LibraryViewModel = viewModel(factory = repositoryFactory { LibraryViewModel(repository) })
     val state by vm.uiState.collectAsStateWithLifecycle()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { vm.refresh() }
     val types = listOf(null to "All", "screenshot" to "Screenshots", "image" to "Images", "pdf" to "PDFs", "document" to "Documents")
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), contentPadding = PaddingValues(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Text("Library", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold); Text("Everything you have saved in RecallX.", style = MaterialTheme.typography.bodyLarge) }
+        item { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Column { Text("Library", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold); Text("Everything you have saved in RecallX.", style = MaterialTheme.typography.bodyLarge) }; TextButton(onClick = onAddMemory) { Text("Add Memory") } } }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) { types.forEach { (value, label) -> FilterChip(selected = state.selectedType == value, onClick = { vm.selectType(value) }, label = { Text(label) }) } } }
         if (state.isRefreshing) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         when {

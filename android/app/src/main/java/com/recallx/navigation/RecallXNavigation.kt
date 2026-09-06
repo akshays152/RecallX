@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.*
 import com.recallx.core.ui.HomeScreen
+import com.recallx.core.ui.AddMemoryScreen
 import com.recallx.core.ui.LibraryScreen
 import com.recallx.core.ui.MemoryDetailScreen
 import com.recallx.data.repository.RecallXRepository
@@ -36,10 +37,10 @@ fun RecallXNavHost(repository: RecallXRepository) {
     }) { padding ->
         NavHost(navController, startDestination = Destination.Home.route, modifier = Modifier.padding(padding)) {
             composable(Destination.Home.route) { HomeScreen(repository, onSearch = { navController.navigate(Destination.SearchResults.route) }, onAddMemory = { navController.navigate(Destination.AddMemory.route) }, onCameraSearch = { navController.navigate(Destination.CameraSearch.route) }, onOpenMemory = { navController.navigate("memory-detail/$it") }, onOpenLibrary = { navController.navigate(Destination.Library.route) }) }
-            composable(Destination.Library.route) { LibraryScreen(repository) { navController.navigate("memory-detail/$it") } }
+            composable(Destination.Library.route) { LibraryScreen(repository, onMemory = { navController.navigate("memory-detail/$it") }, onAddMemory = { navController.navigate(Destination.AddMemory.route) }) }
             composable(Destination.CameraSearch.route) { PlaceholderScreen("Camera Search", "Visual search is ready for the CameraX phase.", "Open visual results") { navController.navigate(Destination.VisualSearchResults.route) } }
             composable(Destination.SearchResults.route) { PlaceholderScreen("Search", "Advanced semantic search will be added in a later phase.", "Back") { navController.popBackStack() } }
-            composable(Destination.AddMemory.route) { PlaceholderScreen("Add Memory", "Memory capture and upload UI will be added next.", "Back") { navController.popBackStack() } }
+            composable(Destination.AddMemory.route) { AddMemoryScreen(repository, onBack = { navController.popBackStack() }, onViewMemory = { navController.navigate("memory-detail/$it") }) }
             composable(Destination.MemoryDetail.route) { entry ->
                 val memoryId = entry.arguments?.getString("id")
                 if (memoryId == null) PlaceholderScreen("Memory unavailable", "This memory could not be opened.", "Back") { navController.popBackStack() }

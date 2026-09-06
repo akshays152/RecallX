@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "recallx-engine"
+version = "0.1.0"
+description = "Local-first multimodal memory retrieval engine for RecallX"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+api = ["fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.9"]
+images = ["Pillow>=10", "pytesseract>=0.3.13"]
+documents = ["pypdf>=5"]
+semantic = ["sentence-transformers>=3", "transformers>=4.45", "torch>=2.2", "Pillow>=10", "numpy>=1.26"]
+audio = ["faster-whisper>=1.1"]
+all = [
+  "fastapi>=0.115", "uvicorn>=0.30", "python-multipart>=0.0.9",
+  "Pillow>=10", "pytesseract>=0.3.13", "pypdf>=5",
+  "sentence-transformers>=3", "transformers>=4.45", "torch>=2.2", "numpy>=1.26", "faster-whisper>=1.1"
+]
+
+[project.scripts]
+recallx = "recallx_engine.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["recallx_engine*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

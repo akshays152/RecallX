@@ -18,7 +18,8 @@ data class SearchUiState(
     val query: String = "",
     val results: List<SearchResult> = emptyList(),
     val provider: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val recentQueries: List<String> = emptyList()
 )
 
 class SearchViewModel(private val repository: RecallXRepository) : ViewModel() {
@@ -39,11 +40,15 @@ class SearchViewModel(private val repository: RecallXRepository) : ViewModel() {
         searchJob = viewModelScope.launch {
             _uiState.update { it.copy(phase = SearchPhase.SEARCHING, error = null) }
             runCatching { repository.searchMemories(query) }
-                .onSuccess { response -> _uiState.update { it.copy(phase = if (response.results.isEmpty()) SearchPhase.EMPTY else SearchPhase.SUCCESS, results = response.results, provider = response.provider) } }
+                .onSuccess { response -> _uiState.update { it.copy(phase = if (response.results.isEmpty()) SearchPhase.EMPTY else SearchPhase.SUCCESS, results = response.results, provider = response.provider, recentQueries = addRecent(it.recentQueries, query)) } }
                 .onFailure { error -> _uiState.update { it.copy(phase = SearchPhase.ERROR, error = error.userMessage()) } }
         }
     }
 
-    fun clear() { searchJob?.cancel(); _uiState.value = SearchUiState() }
+    fun clearQuery() { searchJob?.cancel(); _uiState.update { it.copy(phase = SearchPhase.IDLE, query = "", results = emptyList(), error = null, provider = null) } }
+    fun clearRecentSearches() { _uiState.update { it.copy(recentQueries = emptyList()) } }
+    private fun addRecent(existing: List<String>, query: String): List<String> = listOf(query) + existing.filterNot { it.equals(query, ignoreCase = true) }.take(MAX_RECENT_QUERIES - 1)
     override fun onCleared() { searchJob?.cancel(); super.onCleared() }
+
+    companion object { private const val MAX_RECENT_QUERIES = 5 }
 }

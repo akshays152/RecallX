@@ -7,7 +7,6 @@ import android.graphics.Matrix
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 
 data class PreparedSearchImage(val file: File, val displayName: String = "visual-search.jpg") {

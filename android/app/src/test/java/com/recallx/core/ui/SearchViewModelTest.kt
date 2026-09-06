@@ -54,6 +54,16 @@ class SearchViewModelTest {
         vm.submit("hotel"); vm.submit("hotel"); advanceUntilIdle()
         assertEquals(1, repo.calls)
     }
+
+    @Test fun recentSearchesAreNewestFirstDeduplicatedAndClearable() = runTest {
+        val repo = SearchFakeRepository(response = SearchResponse("query", emptyList(), "demo"))
+        val vm = SearchViewModel(repo)
+        listOf("one", "two", "three", "four", "five", "six").forEach { vm.submit(it); advanceUntilIdle() }
+        vm.submit("three"); advanceUntilIdle()
+        assertEquals(listOf("three", "six", "five", "four", "two"), vm.uiState.value.recentQueries)
+        vm.clearRecentSearches()
+        assertTrue(vm.uiState.value.recentQueries.isEmpty())
+    }
 }
 
 private class SearchFakeRepository(private val response: SearchResponse? = null, private val failure: Throwable? = null) : RecallXRepository {

@@ -106,7 +106,7 @@ class MemoryDetailViewModel(private val repository: RecallXRepository, private v
                 .onSuccess { memory ->
                     _uiState.update { it.copy(isLoading = false, memory = memory) }
                     loadRelated()
-                    if (memory.contentAvailable) loadContent()
+                    if (memory.contentAvailable && memory.fileType in setOf(com.recallx.core.model.MemoryFileType.IMAGE, com.recallx.core.model.MemoryFileType.SCREENSHOT)) loadContent()
                 }
                 .onFailure { error -> _uiState.update { it.copy(isLoading = false, error = error.userMessage()) } }
         }

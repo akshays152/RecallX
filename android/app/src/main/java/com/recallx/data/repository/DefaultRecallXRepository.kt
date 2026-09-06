@@ -11,7 +11,6 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -44,8 +43,7 @@ class DefaultRecallXRepository(private val api: RecallXApi) : RecallXRepository 
         private const val EMULATOR_BASE_URL = "http://10.0.2.2:8000/api/"
         fun create(baseUrl: String = System.getProperty("recallx.baseUrl") ?: EMULATOR_BASE_URL): DefaultRecallXRepository {
             val json = Json { ignoreUnknownKeys = true; isLenient = true }
-            val logging = HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC }
-            val client = OkHttpClient.Builder().addInterceptor(logging).build()
+            val client = OkHttpClient.Builder().build()
             val api = Retrofit.Builder().baseUrl(baseUrl.ensureTrailingSlash()).client(client).addConverterFactory(json.asConverterFactory("application/json".toMediaType())).build().create(RecallXApi::class.java)
             return DefaultRecallXRepository(api)
         }

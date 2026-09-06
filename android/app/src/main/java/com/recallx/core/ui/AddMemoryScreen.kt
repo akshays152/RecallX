@@ -1,6 +1,5 @@
 package com.recallx.core.ui
 
-import android.content.ContentResolver
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts

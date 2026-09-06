@@ -2,7 +2,7 @@
 
 Local-first multimodal retrieval for the RecallX Android app. It indexes screenshots, photos, PDFs, text/messages, and voice notes; extracts searchable text and useful fields; and ranks natural-language queries such as **“Find that screenshot where I saved the hotel price.”**
 
-## What Person 1 delivers
+## What is done as of now
 
 - Image preprocessing and OCR (Pillow + Tesseract)
 - PDF/DOCX/text extraction

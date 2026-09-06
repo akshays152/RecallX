@@ -122,7 +122,7 @@ fun MemoryDetailScreen(repository: RecallXRepository, memoryId: String, onBack: 
 @Composable private fun EmptyBlock(title: String, body: String) { Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(body, style = MaterialTheme.typography.bodyMedium) } } }
 @Composable private fun ErrorBlock(message: String, retry: () -> Unit) { Card(Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { Text(message, color = MaterialTheme.colorScheme.error); OutlinedButton(onClick = retry) { Text("Try again") } } } }
 
-private fun <T : ViewModel> repositoryFactory(create: () -> T) = object : ViewModelProvider.Factory { @Suppress("UNCHECKED_CAST") override fun <VM : ViewModel> create(modelClass: Class<VM>): VM = create() as VM }
+fun <T : ViewModel> repositoryFactory(create: () -> T) = object : ViewModelProvider.Factory { @Suppress("UNCHECKED_CAST") override fun <VM : ViewModel> create(modelClass: Class<VM>): VM = create() as VM }
 private fun MemoryFileType.displayName() = name.lowercase().replaceFirstChar { it.uppercase() }
 private fun ProcessingStatus.displayName() = name.lowercase().replaceFirstChar { it.uppercase() }
 private fun String.displayDate(): String = runCatching { DateTimeFormatter.ofPattern("dd MMM yyyy").format(Instant.parse(this).atZone(ZoneId.systemDefault())) }.getOrDefault(this)

@@ -4,12 +4,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.*
 import com.recallx.core.ui.HomeScreen
 import com.recallx.core.ui.AddMemoryScreen
+import com.recallx.core.ui.CameraSearchScreen
 import com.recallx.core.ui.LibraryScreen
 import com.recallx.core.ui.MemoryDetailScreen
+import com.recallx.core.ui.VisualSearchResultsScreen
+import com.recallx.core.ui.VisualSearchViewModel
 import com.recallx.data.repository.RecallXRepository
 
 private sealed class Destination(val route: String, val label: String, val icon: String) {
@@ -38,7 +42,7 @@ fun RecallXNavHost(repository: RecallXRepository) {
         NavHost(navController, startDestination = Destination.Home.route, modifier = Modifier.padding(padding)) {
             composable(Destination.Home.route) { HomeScreen(repository, onSearch = { navController.navigate(Destination.SearchResults.route) }, onAddMemory = { navController.navigate(Destination.AddMemory.route) }, onCameraSearch = { navController.navigate(Destination.CameraSearch.route) }, onOpenMemory = { navController.navigate("memory-detail/$it") }, onOpenLibrary = { navController.navigate(Destination.Library.route) }) }
             composable(Destination.Library.route) { LibraryScreen(repository, onMemory = { navController.navigate("memory-detail/$it") }, onAddMemory = { navController.navigate(Destination.AddMemory.route) }) }
-            composable(Destination.CameraSearch.route) { PlaceholderScreen("Camera Search", "Visual search is ready for the CameraX phase.", "Open visual results") { navController.navigate(Destination.VisualSearchResults.route) } }
+            composable(Destination.CameraSearch.route) { CameraSearchScreen(repository, onBack = { navController.popBackStack() }, onResults = { navController.navigate(Destination.VisualSearchResults.route) }) }
             composable(Destination.SearchResults.route) { PlaceholderScreen("Search", "Advanced semantic search will be added in a later phase.", "Back") { navController.popBackStack() } }
             composable(Destination.AddMemory.route) { AddMemoryScreen(repository, onBack = { navController.popBackStack() }, onViewMemory = { navController.navigate("memory-detail/$it") }) }
             composable(Destination.MemoryDetail.route) { entry ->
@@ -46,7 +50,11 @@ fun RecallXNavHost(repository: RecallXRepository) {
                 if (memoryId == null) PlaceholderScreen("Memory unavailable", "This memory could not be opened.", "Back") { navController.popBackStack() }
                 else MemoryDetailScreen(repository, memoryId, onBack = { navController.popBackStack() }, onDeleted = { navController.popBackStack() }, onOpenMemory = { navController.navigate("memory-detail/$it") })
             }
-            composable(Destination.VisualSearchResults.route) { PlaceholderScreen("Visual Search Results", "Visual result cards will be added with CameraX.", "Back") { navController.popBackStack() } }
+            composable(Destination.VisualSearchResults.route) {
+                val cameraEntry = remember(navController) { navController.getBackStackEntry(Destination.CameraSearch.route) }
+                val vm: VisualSearchViewModel = androidx.lifecycle.viewmodel.compose.viewModel(cameraEntry, factory = com.recallx.core.ui.repositoryFactory { VisualSearchViewModel(repository) })
+                VisualSearchResultsScreen(vm, onBack = { vm.reset(); navController.popBackStack() }, onOpenMemory = { navController.navigate("memory-detail/$it") })
+            }
         }
     }
 }

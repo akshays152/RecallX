@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:name=".RecallXApplication" android:allowBackup="true" android:label="RecallX" android:supportsRtl="true" android:theme="@style/Theme.RecallX">
         <activity android:name=".MainActivity" android:exported="true">

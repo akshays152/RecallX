@@ -7,7 +7,10 @@ from typing import Any
 
 
 _MONTH = r"Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?"
-_PRICE_RE = re.compile(r"(?<!\w)(?:₹|Rs\.?|INR|\$|USD|€|EUR|£|GBP)\s?\d[\d,]*(?:\.\d{1,2})?", re.I)
+_PRICE_RE = re.compile(
+    r"(?<!\w)(?:(?:₹|Rs\.?|INR|\$|USD|€|EUR|£|GBP)\s?\d[\d,]*(?:\.\d{1,2})?"
+    r"|\d[\d,]*(?:\.\d{1,2})?\s*(?:rupees|dollars|euros|pounds))", re.I
+)
 _DATE_PATTERNS = [
     re.compile(r"\b\d{1,2}[/-]\d{1,2}[/-](?:\d{2}|\d{4})\b"),
     re.compile(rf"\b(?:\d{{1,2}}\s+(?:{_MONTH})|(?:{_MONTH})\s+\d{{1,2}})(?:,?\s+\d{{4}})?\b", re.I),
@@ -19,7 +22,7 @@ _URL_RE = re.compile(r"https?://[^\s<>]+", re.I)
 _TIME_RE = re.compile(r"\b(?:[01]?\d|2[0-3]):[0-5]\d(?:\s?[AP]M)?\b", re.I)
 _LOCATION_RE = re.compile(r"\b(?:at|in|near|from|to)\s+([A-Z][\w.-]+(?:\s+[A-Z][\w.-]+){0,3})")
 _PERSON_RE = re.compile(r"\b(?:from|with|contact|name|by)[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})")
-_PRODUCT_RE = re.compile(r"\b(?:[A-Z][A-Za-z]+[ -])?(?:[A-Z]{1,5}-?)?[A-Z]*\d{1,4}[A-Z0-9-]*\b")
+_PRODUCT_RE = re.compile(r"\b(?:[A-Z]{1,6}[- ]?\d{2,5}[A-Z0-9-]*|[A-Za-z][A-Za-z0-9-]{2,20}\s+[A-Z]\d{1,5})\b")
 
 
 def _unique(values: list[str]) -> list[str]:

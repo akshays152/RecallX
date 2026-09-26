@@ -1,13 +1,15 @@
 package com.recallx.data.repository
-import com.recallx.core.model.*
+
+import com.recallx.core.network.dto.MemoryDto
+import com.recallx.core.network.dto.SearchHitDto
 import java.io.File
+
 interface RecallXRepository {
-    suspend fun listMemories(): List<Memory>
-    suspend fun getMemory(id: String): Memory
-    suspend fun getMemoryStatus(id: String): MemoryStatus
-    suspend fun createMemory(file: File, source: String, fileType: String? = null): IngestionResult
+    val baseUrl: String
+    suspend fun listMemories(): List<MemoryDto>
+    suspend fun ingestFile(file: File, originalName: String, sourceUri: String, mediaType: String): MemoryDto
+    suspend fun ingestText(text: String, title: String): MemoryDto
+    suspend fun search(query: String): List<SearchHitDto>
     suspend fun deleteMemory(id: String)
-    suspend fun relatedMemories(id: String): List<SearchResult>
-    suspend fun searchMemories(query: String): SearchResponse
-    suspend fun visualSearch(file: File, question: String? = null): VisualSearchResponse
+    fun contentUrl(memory: MemoryDto): String?
 }

@@ -81,6 +81,19 @@ class SentenceTransformerEmbedder:
         return self._model.encode(text, normalize_embeddings=True).tolist()
 
 
+class FastEmbedEmbedder:
+    name = "BAAI/bge-small-en-v1.5"
+    dimensions = 384
+
+    def __init__(self, allow_download: bool = False):
+        from fastembed import TextEmbedding
+
+        self._model = TextEmbedding(model_name=self.name, local_files_only=not allow_download)
+
+    def encode(self, text: str) -> list[float]:
+        return [float(value) for value in next(iter(self._model.embed([text])))]
+
+
 class ClipEmbedder:
     """Shared text/image embedding space for true visual-to-text retrieval."""
 
@@ -119,6 +132,11 @@ def get_embedder(prefer_transformer: bool = True) -> Embedder:
         try:
             return ClipEmbedder(allow_download=allow_download)
         except (ImportError, OSError, RuntimeError):
+            pass
+    if prefer_transformer and choice in {"auto", "fastembed"}:
+        try:
+            return FastEmbedEmbedder(allow_download=allow_download)
+        except (ImportError, OSError, RuntimeError, ValueError):
             pass
     if prefer_transformer and choice in {"auto", "sentence-transformer"}:
         try:

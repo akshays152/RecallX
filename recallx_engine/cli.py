@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from .engine import RecallEngine
@@ -31,6 +32,7 @@ def main() -> None:
             import uvicorn
         except ImportError as error:
             raise SystemExit("Install API dependencies: pip install -e .[api]") from error
+        os.environ["RECALLX_DB"] = args.db
         uvicorn.run("recallx_engine.api:app", host=args.host, port=args.port, reload=False)
         return
 

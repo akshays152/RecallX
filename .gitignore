@@ -2,8 +2,14 @@ __pycache__/
 *.py[cod]
 .venv/
 *.db
+*.files/
+demo_data/
+android/.gradle/
+android/local.properties
+android/**/build/
 .pytest_cache/
 .coverage
 dist/
 build/
 *.egg-info/
+tmp/

@@ -1,13 +1,13 @@
-# RecallX Recall Engine
+# RecallX
 
-Local-first multimodal retrieval for the RecallX Android app. It indexes screenshots, photos, PDFs, text/messages, and voice notes; extracts searchable text and useful fields; and ranks natural-language queries such as **“Find that screenshot where I saved the hotel price.”**
+Local-first multimodal retrieval with an Android client and Python Recall Engine. It indexes screenshots, photos, PDFs, text/messages, and voice notes; extracts searchable text and useful fields; and ranks natural-language queries such as **“Find that screenshot where I saved the hotel price.”**
 
 ## What is done as of now
 
-- Image preprocessing and OCR (Pillow + Tesseract)
+- Image preprocessing and local ONNX OCR (Pillow + RapidOCR)
 - PDF/DOCX/text extraction
 - Voice-note transcription (optional local faster-whisper)
-- Local semantic embeddings (SentenceTransformers when cached, deterministic offline fallback otherwise)
+- Local semantic embeddings (FastEmbed ONNX when cached, deterministic offline fallback otherwise)
 - Optional CLIP shared visual/text embeddings for image-content retrieval beyond OCR
 - Context labels for screenshots, shopping, travel, maps, food, documents, and conversations
 - Price, date, time, location, person, product/model, phone, email, URL, and document-type extraction
@@ -16,7 +16,7 @@ Local-first multimodal retrieval for the RecallX Android app. It indexes screens
 - Deduplication and persistent SQLite vector storage
 - Android-friendly FastAPI contract plus a CLI
 
-All content and vectors remain local. No cloud API or key is required.
+All content and vectors remain on the computer running the Recall Engine. No cloud API or key is required. The Android app communicates with that computer over a local network; inference is **not yet on the phone**.
 
 ## Quick start
 
@@ -27,7 +27,7 @@ pip install -e ".[api,images,documents]"
 recallx serve --host 0.0.0.0 --port 8000
 ```
 
-For stronger semantic matching, install `pip install -e ".[semantic]"`. Models use the local cache by default, so startup never silently downloads model weights. Set `RECALLX_ALLOW_MODEL_DOWNLOAD=1` for a one-time approved download. Set `RECALLX_EMBEDDER=clip` to use CLIP for shared image/text embeddings or `RECALLX_EMBEDDER=sentence-transformer` for text-focused retrieval. For voice notes, install `pip install -e ".[audio]"`. Tesseract itself must be installed on the laptop/phone environment for OCR; the Python extra installs its adapter.
+The `images` extra includes a local ONNX OCR model and needs no separate Tesseract installation. For stronger semantic matching, install `pip install -e ".[semantic]"` (FastEmbed ONNX). Models use the local cache by default, so startup never silently downloads model weights. Set `RECALLX_ALLOW_MODEL_DOWNLOAD=1` for a one-time approved download. Set `RECALLX_EMBEDDER=clip` and install `.[vision]` for shared image/text embeddings, or set `RECALLX_EMBEDDER=sentence-transformer` and install `.[sentence-transformer]` for the PyTorch text model. For voice notes, install `pip install -e ".[audio]"` and cache the Whisper model before an offline demo.
 
 The zero-dependency fallback works immediately for text:
 
@@ -37,6 +37,14 @@ python -m recallx_engine --db demo.db search "hotel price screenshot"
 python -m unittest discover -v
 ```
 
+For a privacy-safe demonstration, run `python examples/generate_demo.py --out demo_data --db demo.db`. This creates four sample screenshots plus a message and checks whether five queries retrieve the expected memories. Start the API with `recallx --db demo.db serve --host 0.0.0.0 --port 8000` to browse this demo library in the Android app. See [submission runbook](docs/SUBMISSION.md) for the demo sequence and remaining validation.
+
+## Android app
+
+Open `android/` in Android Studio, install Android SDK Platform 35, and build/install the app with `./gradlew :app:assembleDebug` (or `gradlew.bat :app:assembleDebug` in Command Prompt). The app has file/photo ingestion, pasted message/note ingestion, camera capture, speech-to-text query input, search, a memory library, original-content opening, deletion, and an editable server address. On an emulator the default is `http://10.0.2.2:8000/v1/`. On a physical phone, connect phone and computer to the same trusted Wi-Fi and enter `http://<computer-LAN-IP>:8000/v1/` in **Server**. Allow port 8000 through the computer firewall if needed. Use demo data only on an untrusted network; the development API has no authentication.
+
+The Android app is not yet verified on a physical device in this workspace. It depends on a running laptop service; on-device Snapdragon inference and Office Kit integration remain future work.
+
 ## Android/backend API contract
 
 | Method | Endpoint | Purpose |
@@ -44,8 +52,11 @@ python -m unittest discover -v
 | `GET` | `/health` | Model, capabilities, and indexed count |
 | `POST` | `/v1/memories/file` | Multipart upload (`file`, optional `source_uri`, `created_at`) |
 | `POST` | `/v1/memories/text` | JSON ingestion for messages/clipboard text |
+| `GET` | `/v1/memories` | List memories, newest first |
 | `POST` | `/v1/search` | Natural-language search and optional filters |
 | `GET` | `/v1/memories/{id}` | Retrieve one memory |
+| `GET` | `/v1/memories/{id}/content` | Retrieve original uploaded file |
+| `GET` | `/v1/memories/{id}/thumbnail` | Retrieve image thumbnail, if available |
 | `DELETE` | `/v1/memories/{id}` | Privacy deletion |
 
 Example search body:
@@ -61,11 +72,11 @@ Example search body:
 }
 ```
 
-Each result includes a normalized score, the complete memory, matching reasons, and text highlights. `created: false` on ingestion means the bytes were already indexed.
+Each result includes a normalized score, the complete memory, matching reasons, and text highlights. `created: false` on ingestion means the bytes were already indexed. File uploads are retained under `recallx.files/` beside the SQLite database; deleting a memory removes the original and its thumbnail.
 
 ## Model strategy for the hackathon
 
-The engine is intentionally provider-independent. In `auto` mode it uses a locally cached `sentence-transformers/all-MiniLM-L6-v2` (open source, CPU-friendly); if unavailable it falls back to a deterministic 512-dimensional hashing model. CLIP can embed pixels and queries into the same vector space. OCR and Whisper also run locally. For Snapdragon deployment, preserve the API and replace the embedder/OCR adapters with ONNX or Qualcomm AI Hub builds—the retrieval and metadata layers do not change.
+The engine is intentionally provider-independent. In `auto` mode it prefers a locally cached FastEmbed `BAAI/bge-small-en-v1.5` ONNX model, then a cached SentenceTransformer, and finally a deterministic 512-dimensional hashing model. CLIP can embed pixels and queries into the same vector space when installed and cached. OCR uses a local ONNX model. For Snapdragon deployment, preserve the API and replace the embedder/OCR adapters with phone-native builds; the retrieval and metadata layers do not change.
 
 ## Accuracy evaluation
 

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import math
-import mimetypes
 import re
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .embeddings import Embedder, cosine, expand_query, get_embedder, mean_normalized
-from .extractors import detect_media_type, extract
+from .extractors import classify_image_context, detect_media_type, extract
 from .metadata import extract_structured, parse_date_filter
 from .models import Memory, SearchResult
 from .store import MemoryStore
@@ -20,6 +21,22 @@ class RecallEngine:
     def __init__(self, db_path: str | Path = "recallx.db", embedder: Embedder | None = None):
         self.store = MemoryStore(db_path)
         self.embedder = embedder or get_embedder()
+        self.files_dir = Path(db_path).resolve().with_suffix(".files")
+        model_fingerprint = f"{self.embedder.name}:{self.embedder.dimensions}"
+        previous_model = self.store.get_setting("embedding_model")
+        if self.store.count() and previous_model != model_fingerprint:
+            for memory, _ in self.store.all():
+                vectors = [self.embedder.encode(self._searchable_text(memory))]
+                encode_image = getattr(self.embedder, "encode_image", None)
+                original = self.store.get_file(memory.id)
+                if encode_image and original and memory.media_type.startswith("image/"):
+                    try:
+                        vectors.append(encode_image(original))
+                    except (OSError, RuntimeError, ValueError):
+                        pass
+                chunks = [(chunk, self.embedder.encode(chunk)) for chunk in self._chunks(memory.text)]
+                self.store.replace_embedding(memory.id, mean_normalized(vectors), chunks)
+        self.store.set_setting("embedding_model", model_fingerprint)
 
     def ingest(
         self, path: str | Path, *, source_uri: str | None = None, media_type: str | None = None,
@@ -32,7 +49,12 @@ class RecallEngine:
         content_hash = hashlib.sha256(raw).hexdigest()
         kind = detect_media_type(source, media_type)
         extracted = extract(source, kind)
-        structured = extract_structured(extracted.text, kind, source.name)
+        if extracted.attributes.get("extractor") in {"unavailable", "unsupported", "ocr-error"}:
+            raise ValueError(extracted.attributes.get("warning", "Content extraction failed"))
+        display_name = title or source.name
+        structured = extract_structured(extracted.text, kind, display_name)
+        if kind.startswith("image/"):
+            extracted.labels = list(dict.fromkeys(extracted.labels + classify_image_context(extracted.text, display_name)))
         stat = source.stat()
         created = created_at or datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()
         now = datetime.now(timezone.utc).isoformat()
@@ -53,7 +75,27 @@ class RecallEngine:
             except (OSError, RuntimeError, ValueError) as error:
                 memory.metadata["visual_embedding_warning"] = str(error)
         chunks = [(chunk, self.embedder.encode(chunk)) for chunk in self._chunks(memory.text)]
-        return self.store.upsert(memory, mean_normalized(vectors), chunks)
+        saved, created_new = self.store.upsert(memory, mean_normalized(vectors), chunks)
+        if created_new:
+            self.files_dir.mkdir(parents=True, exist_ok=True)
+            extension = source.suffix.lower()[:12] or ".bin"
+            destination = self.files_dir / f"{saved.id}{extension}"
+            shutil.copyfile(source, destination)
+            thumbnail = self._make_thumbnail(destination, saved.id) if kind.startswith("image/") else None
+            self.store.set_file(saved.id, str(destination), str(thumbnail) if thumbnail else None)
+        return saved, created_new
+
+    def _make_thumbnail(self, source: Path, memory_id: str) -> Path | None:
+        try:
+            from PIL import Image, ImageOps
+            with Image.open(source) as image:
+                image = ImageOps.exif_transpose(image).convert("RGB")
+                image.thumbnail((480, 480))
+                output = self.files_dir / f"{memory_id}.thumb.jpg"
+                image.save(output, format="JPEG", quality=82)
+                return output
+        except (ImportError, OSError):
+            return None
 
     def ingest_text(
         self, text: str, *, title: str = "Message", source_uri: str = "inline://message",
@@ -151,18 +193,37 @@ class RecallEngine:
         return sorted(results, key=lambda item: item.score, reverse=True)[: max(1, min(limit, 100))]
 
     def capabilities(self) -> dict[str, Any]:
+        image_ready = bool(importlib.util.find_spec("PIL") and importlib.util.find_spec("rapidocr_onnxruntime"))
+        pdf_ready = bool(importlib.util.find_spec("pypdf"))
+        audio_ready = bool(importlib.util.find_spec("faster_whisper"))
+        supported = ["text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+        if image_ready:
+            supported.extend(["image/jpeg", "image/png", "image/webp"])
+        if pdf_ready:
+            supported.append("application/pdf")
+        if audio_ready:
+            supported.extend(["audio/mpeg", "audio/wav", "audio/mp4"])
         return {
             "embedding_model": self.embedder.name,
             "embedding_dimensions": self.embedder.dimensions,
             "indexed_memories": self.store.count(),
             "local_only": True,
-            "supported_types": sorted(set(mimetypes.types_map.values()) & {
-                "application/pdf", "image/jpeg", "image/png", "image/webp", "text/plain", "text/csv", "audio/mpeg", "audio/wav"
-            }),
+            "supported_types": supported,
+            "features": {"ocr": image_ready, "pdf": pdf_ready, "audio_transcription": audio_ready,
+                         "visual_embeddings": hasattr(self.embedder, "encode_image")},
         }
 
     def close(self) -> None:
         self.store.close()
+
+    def delete(self, memory_id: str) -> bool:
+        paths = [self.store.get_file(memory_id), self.store.get_file(memory_id, thumbnail=True)]
+        removed = self.store.delete(memory_id)
+        if removed:
+            for path in paths:
+                if path:
+                    Path(path).unlink(missing_ok=True)
+        return removed
 
     def __enter__(self) -> "RecallEngine":
         return self

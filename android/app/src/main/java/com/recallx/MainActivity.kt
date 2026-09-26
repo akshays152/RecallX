@@ -8,7 +8,6 @@ import com.recallx.navigation.RecallXNavHost
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val repository = (application as RecallXApplication).repository
-        setContent { RecallXTheme { Surface { RecallXNavHost(repository) } } }
+        setContent { RecallXTheme { Surface { RecallXNavHost(this) } } }
     }
 }

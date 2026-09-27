@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -30,6 +31,7 @@ class ApiIntegrationTests(unittest.TestCase):
             [sys.executable, "-m", "recallx_engine", "--db", str(Path(cls.directory.name) / "api.db"),
              "serve", "--host", "127.0.0.1", "--port", str(cls.port)],
             cwd=str(Path(__file__).resolve().parents[1]), env=environment,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
         )
         for _ in range(60):
@@ -45,10 +47,30 @@ class ApiIntegrationTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.process.terminate()
-        cls.process.wait(timeout=10)
+        if cls.process.poll() is None:
+            if os.name == "nt":
+                # CTRL_BREAK lets Uvicorn run FastAPI's shutdown lifecycle and
+                # close RecallEngine's sqlite3 connection before exit.
+                try:
+                    cls.process.send_signal(signal.CTRL_BREAK_EVENT)
+                    cls.process.wait(timeout=10)
+                except (OSError, subprocess.TimeoutExpired):
+                    cls.process.kill()
+                    cls.process.wait(timeout=10)
+            else:
+                cls.process.terminate()
+                cls.process.wait(timeout=10)
         cls.process.stderr.close()
-        cls.directory.cleanup()
+        # Windows may release a just-closed child-process handle a fraction
+        # after wait() returns. Retry cleanup briefly without hiding failures.
+        for attempt in range(20):
+            try:
+                cls.directory.cleanup()
+                return
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.1)
 
     def request_json(self, path, method="GET", payload=None, headers=None):
         body = json.dumps(payload).encode() if payload is not None else None

@@ -20,6 +20,12 @@ engine = RecallEngine(os.environ.get("RECALLX_DB", "recallx.db"))
 app = FastAPI(title="RecallX Recall Engine", version="0.1.0")
 
 
+@app.on_event("shutdown")
+def close_engine() -> None:
+    """Release SQLite before a test/dev server process exits."""
+    engine.close()
+
+
 def memory_response(memory) -> dict:
     result = memory.to_dict()
     result["content_url"] = f"/v1/memories/{memory.id}/content" if engine.store.get_file(memory.id) else None

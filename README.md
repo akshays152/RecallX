@@ -45,6 +45,28 @@ Open `android/` in Android Studio, install Android SDK Platform 35, and build/in
 
 The Android app is not yet verified on a physical device in this workspace. It depends on a running laptop service; on-device Snapdragon inference and Office Kit integration remain future work.
 
+The current Android camera action uses the platform photo-capture contract and uploads the captured image as a new memory. The repository does not currently expose a visual-search endpoint, so this is not presented as backend visual search. A future CameraX/visual-retrieval phase should add both pieces together.
+
+### Basic offline demo vs optional AI features
+
+The basic demo requires only Python 3.10+, this package, and the API extra. Text ingestion and search work with the deterministic local hashing embedder and do not download model weights:
+
+```powershell
+pip install -e ".[api]"
+```
+
+Enhanced capabilities remain optional:
+
+- `.[images]` — Pillow and RapidOCR ONNX image OCR
+- `.[documents]` — PDF and DOCX extraction
+- `.[semantic]` — cached FastEmbed semantic embeddings
+- `.[vision]` — optional CLIP image/text embeddings
+- `.[audio]` — optional faster-whisper voice transcription
+
+If an optional package or cached model is unavailable, the engine reports the capability through `/health` or returns a clear ingestion warning/error; basic text operation remains available.
+
+For Android builds, use Android SDK Platform 35, Build Tools 35.0.0, JDK 17, and the checked-in Gradle wrapper. The Android build has not been completed in this workspace because no Android SDK is configured.
+
 ## Android/backend API contract
 
 | Method | Endpoint | Purpose |

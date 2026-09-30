@@ -1,10 +1,17 @@
 package com.recallx.navigation
 
+import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
+import android.speech.RecognitionListener
+import android.speech.SpeechRecognizer
+import android.os.Bundle
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -15,9 +22,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import com.recallx.core.network.dto.MemoryDto
 import com.recallx.core.network.dto.SearchHitDto
 import com.recallx.data.repository.DefaultRecallXRepository
+import com.recallx.data.repository.RecallXClientException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,13 +53,59 @@ fun RecallXNavHost(activity: Activity) {
     var addingText by remember { mutableStateOf(false) }
     var textTitle by remember { mutableStateOf("Message") }
     var textBody by remember { mutableStateOf("") }
+    var voiceStatus by remember { mutableStateOf(VoiceStatus.IDLE) }
+    var voiceError by remember { mutableStateOf<String?>(null) }
+
+    val speechRecognizer = remember(activity) {
+        if (SpeechRecognizer.isRecognitionAvailable(activity)) SpeechRecognizer.createSpeechRecognizer(activity) else null
+    }
+    val requestAudioPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) startVoiceRecognition(activity, speechRecognizer) { status, message ->
+            voiceStatus = status
+            voiceError = message
+        } else {
+            voiceStatus = VoiceStatus.IDLE
+            voiceError = "Voice recognition unavailable. Please allow microphone permission."
+        }
+    }
+
+    DisposableEffect(speechRecognizer) {
+        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) { voiceStatus = VoiceStatus.LISTENING }
+            override fun onBeginningOfSpeech() { voiceStatus = VoiceStatus.LISTENING }
+            override fun onRmsChanged(rmsdB: Float) = Unit
+            override fun onBufferReceived(buffer: ByteArray?) = Unit
+            override fun onEndOfSpeech() { voiceStatus = VoiceStatus.PROCESSING }
+            override fun onPartialResults(partialResults: Bundle?) = Unit
+            override fun onEvent(eventType: Int, params: Bundle?) = Unit
+            override fun onError(error: Int) {
+                Log.w("RecallXVoice", "SpeechRecognizer error=$error")
+                voiceStatus = VoiceStatus.IDLE
+                voiceError = speechErrorMessage(error)
+            }
+            override fun onResults(results: Bundle?) {
+                val recognized = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().trim()
+                voiceStatus = VoiceStatus.IDLE
+                if (recognized.isBlank()) {
+                    voiceError = "I couldn't hear a search query. Please try again."
+                } else {
+                    query = recognized
+                    voiceError = null
+                }
+            }
+        })
+        onDispose {
+            speechRecognizer?.cancel()
+            speechRecognizer?.destroy()
+        }
+    }
 
     fun refresh() {
         scope.launch {
             busy = true
             runCatching { repository.listMemories() }
                 .onSuccess { memories = it; error = null }
-                .onFailure { error = "Cannot reach RecallX server: ${it.message}" }
+                .onFailure { error = it.userMessage("Cannot load memories right now.") }
             busy = false
         }
     }
@@ -75,7 +130,7 @@ fun RecallXNavHost(activity: Activity) {
                 memories = repository.listMemories()
                 hits = null
             } catch (exception: Exception) {
-                error = "Upload failed: ${exception.message}"
+                error = exception.userMessage("Upload failed. Please try again.")
             } finally {
                 temporary?.delete()
                 busy = false
@@ -89,12 +144,6 @@ fun RecallXNavHost(activity: Activity) {
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) pendingPhoto?.let(::ingest)
     }
-    val speech = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            query = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() ?: query
-        }
-    }
-
     LaunchedEffect(serverUrl) { refresh() }
 
     Scaffold(topBar = {
@@ -125,22 +174,28 @@ fun RecallXNavHost(activity: Activity) {
                         busy = true
                         runCatching { repository.search(query.trim()) }
                             .onSuccess { hits = it; error = null }
-                            .onFailure { error = "Search failed: ${it.message}" }
+                            .onFailure { error = it.userMessage("Search failed. Please try again.") }
                         busy = false
                     }
                 }, enabled = query.isNotBlank() && !busy) { Text("Search") }
                 OutlinedButton(onClick = {
-                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, "What memory are you looking for?")
+                    voiceError = null
+                    if (speechRecognizer == null) {
+                        voiceError = "Voice recognition is unavailable on this emulator."
+                    } else if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    } else {
+                        startVoiceRecognition(activity, speechRecognizer) { status, message ->
+                            voiceStatus = status
+                            voiceError = message
+                        }
                     }
-                    runCatching { speech.launch(intent) }.onFailure { error = "Speech input unavailable" }
-                }) { Text("Voice") }
+                }, enabled = voiceStatus != VoiceStatus.PROCESSING) { Text(if (voiceStatus == VoiceStatus.LISTENING) "Listening..." else "Tap to speak") }
                 if (hits != null) TextButton(onClick = { hits = null; query = "" }) { Text("Clear") }
             }
             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
+            voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
             Spacer(Modifier.height(8.dp))
             Text(if (hits == null) "Library (${memories.size})" else "Results (${hits!!.size})", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(8.dp))
@@ -188,7 +243,7 @@ fun RecallXNavHost(activity: Activity) {
                             memories = repository.listMemories()
                             hits = null
                         } catch (exception: Exception) {
-                            error = "Delete failed: ${exception.message}"
+                            error = exception.userMessage("Delete failed. Please try again.")
                         }
                     }
                 }) { Text("Delete") }
@@ -227,7 +282,7 @@ fun RecallXNavHost(activity: Activity) {
                     hits = null
                     error = null
                 } catch (exception: Exception) {
-                    error = "Save failed: ${exception.message}"
+                    error = exception.userMessage("Save failed. Please try again.")
                 }
                 busy = false
             }
@@ -240,4 +295,38 @@ private fun displayName(activity: Activity, uri: Uri): String? {
         if (cursor.moveToFirst()) return cursor.getString(0)
     }
     return uri.lastPathSegment?.substringAfterLast('/')
+}
+
+private fun Throwable.userMessage(fallback: String): String = when (this) {
+    is RecallXClientException -> message
+    else -> fallback
+}
+
+private enum class VoiceStatus { IDLE, LISTENING, PROCESSING }
+
+private fun startVoiceRecognition(context: Context, recognizer: SpeechRecognizer?, onState: (VoiceStatus, String?) -> Unit) {
+    if (recognizer == null) {
+        onState(VoiceStatus.IDLE, "Voice recognition is unavailable on this emulator.")
+        return
+    }
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toLanguageTag())
+        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+    }
+    runCatching {
+        onState(VoiceStatus.LISTENING, null)
+        recognizer.startListening(intent)
+    }.onFailure {
+        onState(VoiceStatus.IDLE, "Voice recognition unavailable. Please check microphone permission.")
+    }
+}
+
+private fun speechErrorMessage(error: Int): String = when (error) {
+    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Voice recognition unavailable. Please check microphone permission."
+    SpeechRecognizer.ERROR_AUDIO, SpeechRecognizer.ERROR_CLIENT -> "Microphone input failed. Please try again."
+    SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "I couldn't hear a search query. Please try again."
+    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Voice recognition is busy. Please try again in a moment."
+    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_SERVER -> "Voice recognition could not connect. Check the emulator's speech service."
+    else -> "Voice recognition failed. Please try again."
 }

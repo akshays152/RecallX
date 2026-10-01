@@ -5,6 +5,7 @@ __pycache__/
 *.files/
 demo_data/
 android/.gradle/
+android/.kotlin/
 android/local.properties
 android/**/build/
 .pytest_cache/

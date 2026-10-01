@@ -41,6 +41,8 @@ For a privacy-safe demonstration, run `python examples/generate_demo.py --out de
 
 ## Android app
 
+The APK includes a default **Samples** library containing six synthetic images and three PDFs. Judges can browse previews, search their pre-extracted text, and open the bundled originals without connecting a laptop or importing files. This is local keyword search over prepared demo content, not on-device model inference. **My memories** and **Add memory** retain the live Recall Engine workflow described below. Hidden samples can be restored in Settings. To regenerate the bundled assets, run `python examples/build_android_demo_assets.py` with the image/document dependencies installed before building Android.
+
 Open `android/` in Android Studio, install Android SDK Platform 35, and build/install the app with `./gradlew :app:assembleDebug` (or `gradlew.bat :app:assembleDebug` in Command Prompt). The app has file/photo ingestion, pasted message/note ingestion, camera capture, speech-to-text query input, search, a memory library, original-content opening, deletion, and an editable server address. On an emulator the default is `http://10.0.2.2:8000/v1/`. On a physical phone, connect phone and computer to the same trusted Wi-Fi and enter `http://<computer-LAN-IP>:8000/v1/` in **Server**. Allow port 8000 through the computer firewall if needed. Use demo data only on an untrusted network; the development API has no authentication.
 
 The Android app is not yet verified on a physical device in this workspace. It depends on a running laptop service; on-device Snapdragon inference and Office Kit integration remain future work.

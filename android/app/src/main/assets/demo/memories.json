@@ -1,0 +1,258 @@
+[
+  {
+    "id": "sample-hotel_booking",
+    "source_uri": "sample://hotel_booking.png",
+    "media_type": "image/png",
+    "title": "Hotel booking",
+    "text": "HOTEL BOOKING\nHotel: Mountain View Resort\nLocation: Manali, Himachal Pradesh\nCheck-in: 12 October 2026\nCheck-out: 15 October 2026\nRoom: Deluxe Room\nPrice: 3,499 per night\nBooking ID: MVR261012\nFICTIONAL DEMO MEMORY· RECALLX OCR TEST",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "width": 1000,
+      "height": 1400,
+      "extractor": "rapidocr-onnx",
+      "dates": [
+        "12 October 2026",
+        "15 October 2026"
+      ],
+      "products": [
+        "MVR261012"
+      ],
+      "document_type": "photo",
+      "bundled_sample": true
+    },
+    "labels": [
+      "travel"
+    ],
+    "content_url": "asset://demo/originals/hotel_booking.png",
+    "thumbnail_url": "asset://demo/previews/hotel_booking.jpg"
+  },
+  {
+    "id": "sample-flight_ticket",
+    "source_uri": "sample://flight_ticket.png",
+    "media_type": "image/png",
+    "title": "Flight ticket",
+    "text": "FLIGHT TICKET\nPassenger: Rahul Sharma\nFrom: Delhi\nTo: Goa\nDate: 18 October 2026\nDeparture: 09:35 AM\nFlight: Al 2741\nSeat: 18A\nPNR: AX7K29\nFICTIONAL DEMO MEMORY · RECALLX OCR TEST",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "width": 1000,
+      "height": 1400,
+      "extractor": "rapidocr-onnx",
+      "dates": [
+        "18 October 2026"
+      ],
+      "times": [
+        "09:35 AM"
+      ],
+      "document_type": "ticket",
+      "bundled_sample": true
+    },
+    "labels": [
+      "travel"
+    ],
+    "content_url": "asset://demo/originals/flight_ticket.png",
+    "thumbnail_url": "asset://demo/previews/flight_ticket.jpg"
+  },
+  {
+    "id": "sample-restaurant_menu",
+    "source_uri": "sample://restaurant_menu.png",
+    "media_type": "image/png",
+    "title": "Restaurant menu",
+    "text": "THEGREENPLATE\nRestaurant: The Green Plate\nLocation: Indore\nPaneer Tikka — 280\nVeg Biryani — 220\nMasala Dosa — 160\nCold Coffee — 120\nSpecial Thali — 299\nFICTIONALDEMOMEMORY·RECALLXOCRTEST",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "width": 1000,
+      "height": 1400,
+      "extractor": "rapidocr-onnx",
+      "document_type": "photo",
+      "bundled_sample": true
+    },
+    "labels": [
+      "food"
+    ],
+    "content_url": "asset://demo/originals/restaurant_menu.png",
+    "thumbnail_url": "asset://demo/previews/restaurant_menu.jpg"
+  },
+  {
+    "id": "sample-shopping_receipt",
+    "source_uri": "sample://shopping_receipt.png",
+    "media_type": "image/png",
+    "title": "Shopping receipt",
+    "text": "SHOPPINGRECEIPT\nStore: TechMart\nProduct: Wireless Headphones\nPrice: ?2,499\nProduct: USB-C Cable\nPrice: 399\nTotal: 2,898\nDate: 28 September 2026\nFICTIONAL DEMO MEMORY· RECALLX OCR TEST",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "width": 1000,
+      "height": 1400,
+      "extractor": "rapidocr-onnx",
+      "dates": [
+        "28 September 2026"
+      ],
+      "document_type": "photo",
+      "bundled_sample": true
+    },
+    "labels": [
+      "document"
+    ],
+    "content_url": "asset://demo/originals/shopping_receipt.png",
+    "thumbnail_url": "asset://demo/previews/shopping_receipt.jpg"
+  },
+  {
+    "id": "sample-event_poster",
+    "source_uri": "sample://event_poster.png",
+    "media_type": "image/png",
+    "title": "Event poster",
+    "text": "TECH INNOVATIONSUMMIT2026\nDate:25October2026\nVenue: Convention Centre, Bhopal\nTime: 10:00 AM\nTopic: Al, Cloud and Cybersecurity\nRegistration: 499\nFICTIONAL DEMO MEMORY · RECALLX OCR TEST",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "width": 1000,
+      "height": 1400,
+      "extractor": "rapidocr-onnx",
+      "times": [
+        "10:00 AM"
+      ],
+      "document_type": "photo",
+      "bundled_sample": true
+    },
+    "labels": [],
+    "content_url": "asset://demo/originals/event_poster.png",
+    "thumbnail_url": "asset://demo/previews/event_poster.jpg"
+  },
+  {
+    "id": "sample-travel_note",
+    "source_uri": "sample://travel_note.png",
+    "media_type": "image/png",
+    "title": "Travel note",
+    "text": "TRAVELPLANS\nTrip: Manali\nStay: Mountain View Resort\nBudget: 12,000\nThings to do:\n- Solang Valley\n- Mall Road\n- Hadimba Temple\n- Rohtang Pass\nFICTIONALDEMOMEMORY·RECALLXOCRTEST",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "width": 1000,
+      "height": 1400,
+      "extractor": "rapidocr-onnx",
+      "document_type": "photo",
+      "bundled_sample": true
+    },
+    "labels": [],
+    "content_url": "asset://demo/originals/travel_note.png",
+    "thumbnail_url": "asset://demo/previews/travel_note.jpg"
+  },
+  {
+    "id": "sample-equipment_invoice",
+    "source_uri": "sample://equipment_invoice.pdf",
+    "media_type": "application/pdf",
+    "title": "Equipment invoice",
+    "text": "RECALLX  /  INVOICE\nEquipment invoice\nPapertrail Demo Supplies  |  Invoice RX-2026-104\nSYNTHETIC SAMPLE - NOT A REAL RECORD\nINVOICE DETAILS\nInvoice date: 01 October 2026\nBill to: RecallX Demo Team\nPayment status: Paid by UPI on 01 October 2026\nITEMS PURCHASED\nAluminium laptop stand                 1 x INR 1,250\nUSB-C hub with HDMI                     1 x INR 2,400\nWireless mouse                              1 x INR 850\nPAYMENT SUMMARY\nSubtotal: INR 4,500\nDelivery fee: INR 100\nAmount paid: INR 4,600\nWARRANTY AND RETURNS\nLaptop stand warranty: 12 months from purchase date.\nReturn window: 7 days. Keep this invoice for reference.\nFictional data for testing document ingestion and search in RecallX.\n1 / 1",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "page_count": 1,
+      "extractor": "pypdf",
+      "scanned_pages": 0,
+      "prices": [
+        "INR 1,250",
+        "INR 2,400",
+        "INR 850",
+        "INR 4,500",
+        "INR 100",
+        "INR 4,600"
+      ],
+      "dates": [
+        "01 October 2026"
+      ],
+      "locations": [
+        "RecallX"
+      ],
+      "products": [
+        "RX-2026-104",
+        "INR 850",
+        "INR 100"
+      ],
+      "document_type": "receipt",
+      "bundled_sample": true
+    },
+    "labels": [
+      "document"
+    ],
+    "content_url": "asset://demo/originals/equipment_invoice.pdf",
+    "thumbnail_url": "asset://demo/previews/equipment_invoice.jpg"
+  },
+  {
+    "id": "sample-goa_travel_itinerary",
+    "source_uri": "sample://goa_travel_itinerary.pdf",
+    "media_type": "application/pdf",
+    "title": "Goa travel itinerary",
+    "text": "RECALLX  /  TRAVEL PLAN\nGoa travel itinerary\nFictional weekend booking  |  Trip reference RX-GOA-012\nSYNTHETIC SAMPLE - NOT A REAL RECORD\nTRAVEL\nDeparture: Bengaluru to Goa on 12 October 2026 at 07:45.\nReturn: Goa to Bengaluru on 14 October 2026 at 18:20.\nTravel party: Two adults.\nHOTEL BOOKING\nHotel: Seabreeze Demo Stay near Candolim Beach in Goa.\nCheck-in: 12 October 2026 at 14:00.\nCheck-out: 14 October 2026 at 11:00.\nRoom price: INR 4,500 per night. Breakfast included.\nPLAN AND REMINDERS\n12 October: Beach walk and dinner at 19:30.\n13 October: Visit Fort Aguada. Carry water and sunscreen.\n14 October: Leave for the airport by 15:30.\nFictional data for testing document ingestion and search in RecallX.\n1 / 1",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "page_count": 1,
+      "extractor": "pypdf",
+      "scanned_pages": 0,
+      "prices": [
+        "INR 4,500"
+      ],
+      "dates": [
+        "12 October 2026",
+        "14 October 2026",
+        "12 October",
+        "13 October",
+        "14 October"
+      ],
+      "times": [
+        "07:45",
+        "18:20",
+        "14:00",
+        "11:00",
+        "19:30",
+        "15:30"
+      ],
+      "locations": [
+        "Goa",
+        "Bengaluru",
+        "Candolim Beach",
+        "Goa.\nCheck-in",
+        "RecallX"
+      ],
+      "products": [
+        "GOA-012"
+      ],
+      "document_type": "pdf_document",
+      "bundled_sample": true
+    },
+    "labels": [
+      "document"
+    ],
+    "content_url": "asset://demo/originals/goa_travel_itinerary.pdf",
+    "thumbnail_url": "asset://demo/previews/goa_travel_itinerary.jpg"
+  },
+  {
+    "id": "sample-design_review_notes",
+    "source_uri": "sample://design_review_notes.pdf",
+    "media_type": "application/pdf",
+    "title": "Design review notes",
+    "text": "RECALLX  /  MEETING NOTES\nDesign review notes\nRecallX Demo Team  |  Meeting held 01 October 2026\nSYNTHETIC SAMPLE - NOT A REAL RECORD\nMEETING CONTEXT\nTopic: Mobile memory library and document search.\nParticipants: Riya Sharma and Arjun Mehta (fictional).\nMeeting time: 10:30 to 11:15.\nDECISIONS\nPrioritize search and make saved content easier to recognize.\nKeep the existing API contract and retrieval pipeline unchanged.\nUse synthetic files for the demonstration.\nACTION ITEMS\nRiya Sharma: Validate PDF ingestion by 03 October 2026.\nArjun Mehta: Test camera permissions by 04 October 2026.\nDemo Team: Record the phone demo by 05 October 2026.\nNEXT REVIEW\nNext design review: 06 October 2026 at 10:30.\nBring the test results and a list of remaining issues.\nFictional data for testing document ingestion and search in RecallX.\n1 / 1",
+    "created_at": "2026-10-01T00:00:00Z",
+    "metadata": {
+      "page_count": 1,
+      "extractor": "pypdf",
+      "scanned_pages": 0,
+      "dates": [
+        "01 October 2026",
+        "03 October 2026",
+        "04 October 2026",
+        "05 October 2026",
+        "06 October 2026"
+      ],
+      "times": [
+        "10:30",
+        "11:15"
+      ],
+      "locations": [
+        "RecallX"
+      ],
+      "document_type": "pdf_document",
+      "bundled_sample": true
+    },
+    "labels": [
+      "document"
+    ],
+    "content_url": "asset://demo/originals/design_review_notes.pdf",
+    "thumbnail_url": "asset://demo/previews/design_review_notes.jpg"
+  }
+]

@@ -15,22 +15,23 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.recallx.core.network.dto.MemoryDto
 import com.recallx.core.network.dto.SearchHitDto
 import com.recallx.data.repository.DefaultRecallXRepository
 import com.recallx.data.repository.RecallXClientException
+import com.recallx.data.repository.SampleRecallXRepository
+import com.recallx.data.repository.RecallXRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 import java.util.Locale
 
 @Composable
@@ -40,7 +41,10 @@ fun RecallXNavHost(activity: Activity) {
     var serverUrl by remember { mutableStateOf(preferences.getString("server_url", DefaultRecallXRepository.EMULATOR_BASE_URL) ?: DefaultRecallXRepository.EMULATOR_BASE_URL) }
     var editingServer by remember { mutableStateOf(false) }
     var serverDraft by remember { mutableStateOf(serverUrl) }
-    val repository = remember(serverUrl) { DefaultRecallXRepository.create(serverUrl) }
+    val liveRepository = remember(serverUrl) { DefaultRecallXRepository.create(serverUrl) }
+    val sampleRepository = remember { SampleRecallXRepository(activity) }
+    var sampleMode by rememberSaveable { mutableStateOf(true) }
+    val repository: RecallXRepository = if (sampleMode) sampleRepository else liveRepository
     val scope = rememberCoroutineScope()
 
     var query by remember { mutableStateOf("") }
@@ -48,6 +52,7 @@ fun RecallXNavHost(activity: Activity) {
     var hits by remember { mutableStateOf<List<SearchHitDto>?>(null) }
     var selected by remember { mutableStateOf<MemoryDto?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var connected by remember { mutableStateOf<Boolean?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var pendingPhoto by remember { mutableStateOf<Uri?>(null) }
     var addingText by remember { mutableStateOf(false) }
@@ -101,12 +106,14 @@ fun RecallXNavHost(activity: Activity) {
     }
 
     fun refresh() {
+        val requestMode = sampleMode
+        val requestServer = serverUrl
         scope.launch {
             busy = true
             runCatching { repository.listMemories() }
-                .onSuccess { memories = it; error = null }
-                .onFailure { error = it.userMessage("Cannot load memories right now.") }
-            busy = false
+                .onSuccess { if (requestMode == sampleMode && requestServer == serverUrl) { memories = it; error = null; if (!sampleMode) connected = true } }
+                .onFailure { if (requestMode == sampleMode && requestServer == serverUrl) { error = it.userMessage("Cannot load memories right now."); if (!sampleMode) connected = false } }
+            if (requestMode == sampleMode && requestServer == serverUrl) busy = false
         }
     }
 
@@ -125,9 +132,9 @@ fun RecallXNavHost(activity: Activity) {
                     }
                 }
                 temporary = staged
-                val memory = repository.ingestFile(staged, name, uri.toString(), type)
+                val memory = liveRepository.ingestFile(staged, name, uri.toString(), type)
                 selected = memory
-                memories = repository.listMemories()
+                memories = liveRepository.listMemories()
                 hits = null
             } catch (exception: Exception) {
                 error = exception.userMessage("Upload failed. Please try again.")
@@ -144,113 +151,100 @@ fun RecallXNavHost(activity: Activity) {
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success) pendingPhoto?.let(::ingest)
     }
-    LaunchedEffect(serverUrl) { refresh() }
+    LaunchedEffect(serverUrl, sampleMode) { memories = emptyList(); connected = null; refresh() }
 
-    Scaffold(topBar = {
-        TopAppBar(title = { Text("RecallX") }, actions = {
-            TextButton(onClick = { refresh() }, enabled = !busy) { Text("Refresh") }
-            TextButton(onClick = { editingServer = true; serverDraft = serverUrl }) { Text("Server") }
-        })
-    }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
-            Text("Your phone's personal memory", style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { pickFile.launch("*/*") }, enabled = !busy) { Text("Add file") }
-                OutlinedButton(onClick = { addingText = true }, enabled = !busy) { Text("Add text") }
-                OutlinedButton(onClick = {
-                    val file = File(activity.cacheDir, "camera-${System.currentTimeMillis()}.jpg")
-                    val uri = androidx.core.content.FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
-                    pendingPhoto = uri
-                    takePicture.launch(uri)
-                }, enabled = !busy) { Text("Camera") }
+    fun useLiveLibrary() {
+        sampleMode = false
+        hits = null
+        selected = null
+        query = ""
+    }
+
+    RecallXApp(
+        memories = memories, hits = hits, selected = selected, query = query,
+        busy = busy, error = error,
+        voiceMessage = voiceError ?: when (voiceStatus) {
+            VoiceStatus.LISTENING -> "Listening… Speak your search query."
+            VoiceStatus.PROCESSING -> "Processing your voice query…"
+            VoiceStatus.IDLE -> null
+        },
+        voiceBusy = voiceStatus != VoiceStatus.IDLE,
+        connected = connected, serverUrl = serverUrl, sampleMode = sampleMode,
+        onSampleMode = { sampleMode = it; hits = null; selected = null; query = ""; error = null },
+        onRestoreSamples = {
+            sampleRepository.restore(); sampleMode = true; hits = null; selected = null; query = ""; error = null
+            scope.launch { memories = sampleRepository.listMemories() }
+        },
+        onQuery = { query = it },
+        onSearch = {
+            val requestMode = sampleMode
+            val requestServer = serverUrl
+            scope.launch {
+                busy = true
+                runCatching { repository.search(query.trim()) }
+                    .onSuccess { if (requestMode == sampleMode && requestServer == serverUrl) { hits = it; error = null } }
+                    .onFailure { if (requestMode == sampleMode && requestServer == serverUrl) error = it.userMessage("Search failed. Please try again.") }
+                if (requestMode == sampleMode && requestServer == serverUrl) busy = false
             }
-            Spacer(Modifier.height(12.dp))
-            OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Search your memories") },
-                placeholder = { Text("Find that hotel price screenshot") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = {
-                    scope.launch {
-                        busy = true
-                        runCatching { repository.search(query.trim()) }
-                            .onSuccess { hits = it; error = null }
-                            .onFailure { error = it.userMessage("Search failed. Please try again.") }
-                        busy = false
-                    }
-                }, enabled = query.isNotBlank() && !busy) { Text("Search") }
-                OutlinedButton(onClick = {
-                    voiceError = null
-                    if (speechRecognizer == null) {
-                        voiceError = "Voice recognition is unavailable on this emulator."
-                    } else if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
-                    } else {
-                        startVoiceRecognition(activity, speechRecognizer) { status, message ->
-                            voiceStatus = status
-                            voiceError = message
-                        }
-                    }
-                }, enabled = voiceStatus != VoiceStatus.PROCESSING) { Text(if (voiceStatus == VoiceStatus.LISTENING) "Listening..." else "Tap to speak") }
-                if (hits != null) TextButton(onClick = { hits = null; query = "" }) { Text("Clear") }
+        },
+        onVoice = {
+            voiceError = null
+            if (speechRecognizer == null) {
+                voiceError = "Voice recognition is unavailable on this device."
+            } else if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                requestAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+            } else {
+                startVoiceRecognition(activity, speechRecognizer) { status, message ->
+                    voiceStatus = status
+                    voiceError = message
+                }
             }
-            if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
-            voiceError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp)) }
-            Spacer(Modifier.height(8.dp))
-            Text(if (hits == null) "Library (${memories.size})" else "Results (${hits!!.size})", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(8.dp))
-            val displayed = hits?.map { it.memory } ?: memories
-            if (displayed.isEmpty() && !busy) Text(if (hits == null) "No memories yet. Add a screenshot, photo, PDF, or audio file." else "No matching memories.")
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(displayed, key = { it.id }) { memory ->
-                    val hit = hits?.firstOrNull { it.memory.id == memory.id }
-                    ElevatedCard(onClick = { selected = memory }, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(memory.title, style = MaterialTheme.typography.titleMedium)
-                            Text(memory.mediaType + "  •  " + memory.createdAt.take(10), style = MaterialTheme.typography.labelSmall)
-                            Text((hit?.highlights?.firstOrNull() ?: memory.text).ifBlank { "Tap to open memory" },
-                                maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            hit?.let { Text("Match ${(it.score * 100).toInt()}%  •  ${it.reasons.joinToString()}", style = MaterialTheme.typography.labelSmall) }
-                        }
-                    }
+        },
+        onRefresh = { refresh() }, onSelect = { selected = it },
+        onClear = { hits = null; query = "" },
+        onFile = { useLiveLibrary(); pickFile.launch("*/*") },
+        onText = { useLiveLibrary(); addingText = true },
+        onCamera = {
+            useLiveLibrary()
+            val file = File(activity.cacheDir, "camera-${System.currentTimeMillis()}.jpg")
+            val uri = androidx.core.content.FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+            pendingPhoto = uri
+            takePicture.launch(uri)
+        },
+        onServer = { editingServer = true; serverDraft = serverUrl },
+        onOpen = { memory ->
+            if (memory.sourceUri.startsWith("sample://")) scope.launch {
+                try {
+                    val uri = sampleRepository.originalUri(memory)
+                    activity.startActivity(Intent(Intent.ACTION_VIEW).setDataAndType(uri, memory.mediaType)
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+                } catch (_: android.content.ActivityNotFoundException) {
+                    error = "No viewer is installed for this file. You can read its extracted text here."
+                } catch (_: IOException) {
+                    error = "Could not open this sample file. Please try again."
+                }
+            } else repository.contentUrl(memory)?.let { url ->
+                try { activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                catch (_: android.content.ActivityNotFoundException) { error = "No app is available to open this file. Install a browser or document viewer." }
+            } ?: run { error = "Original file unavailable" }
+        },
+        onDelete = { memory ->
+            scope.launch {
+                busy = true
+                try {
+                    repository.deleteMemory(memory.id)
+                    selected = null
+                    memories = repository.listMemories()
+                    hits = null
+                    error = null
+                } catch (exception: Exception) {
+                    error = exception.userMessage("Delete failed. Please try again.")
+                } finally {
+                    busy = false
                 }
             }
         }
-    }
-
-    selected?.let { memory ->
-        AlertDialog(onDismissRequest = { selected = null }, title = { Text(memory.title) }, text = {
-            Column {
-                Text("Added ${memory.createdAt.take(10)} • ${memory.mediaType}")
-                Spacer(Modifier.height(8.dp))
-                Text(memory.text.ifBlank { "No text was extracted. Open the original file." }, maxLines = 12)
-                if (memory.labels.isNotEmpty()) Text("Labels: ${memory.labels.joinToString()}")
-                memory.metadata["warning"]?.let { Text("Processing warning: $it", color = MaterialTheme.colorScheme.error) }
-            }
-        }, confirmButton = {
-            TextButton(onClick = {
-                repository.contentUrl(memory)?.let { url ->
-                    activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                } ?: run { error = "Original file unavailable" }
-            }) { Text("Open original") }
-        }, dismissButton = {
-            Row {
-                TextButton(onClick = {
-                    scope.launch {
-                        try {
-                            repository.deleteMemory(memory.id)
-                            selected = null
-                            memories = repository.listMemories()
-                            hits = null
-                        } catch (exception: Exception) {
-                            error = exception.userMessage("Delete failed. Please try again.")
-                        }
-                    }
-                }) { Text("Delete") }
-                TextButton(onClick = { selected = null }) { Text("Close") }
-            }
-        })
-    }
+    )
 
     if (editingServer) AlertDialog(onDismissRequest = { editingServer = false }, title = { Text("Recall Engine address") },
         text = { Column {
@@ -260,6 +254,7 @@ fun RecallXNavHost(activity: Activity) {
             if (serverDraft.startsWith("http://") || serverDraft.startsWith("https://")) {
                 val raw = serverDraft.trim().trimEnd('/')
                 serverUrl = (if (raw.endsWith("/v1")) raw else "$raw/v1") + "/"
+                sampleMode = false
                 preferences.edit().putString("server_url", serverUrl).apply()
                 editingServer = false
                 selected = null
@@ -275,8 +270,8 @@ fun RecallXNavHost(activity: Activity) {
             scope.launch {
                 busy = true
                 try {
-                    selected = repository.ingestText(textBody.trim(), textTitle.trim().ifBlank { "Message" })
-                    memories = repository.listMemories()
+                    selected = liveRepository.ingestText(textBody.trim(), textTitle.trim().ifBlank { "Message" })
+                    memories = liveRepository.listMemories()
                     addingText = false
                     textBody = ""
                     hits = null
